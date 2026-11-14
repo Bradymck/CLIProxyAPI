@@ -22,6 +22,7 @@ const (
 	schedulerStrategyRoundRobin         schedulerStrategy = 1
 	schedulerStrategyFillFirst          schedulerStrategy = 2
 	schedulerStrategyWeightedRoundRobin schedulerStrategy = 3
+	schedulerStrategyResetFirst         schedulerStrategy = 4
 )
 
 // scheduledState describes how an auth currently participates in a model shard.
@@ -173,6 +174,8 @@ func selectorStrategy(selector Selector) schedulerStrategy {
 	switch selector.(type) {
 	case *FillFirstSelector:
 		return schedulerStrategyFillFirst
+	case *ResetFirstSelector:
+		return schedulerStrategyResetFirst
 	case *WeightedRoundRobinSelector:
 		return schedulerStrategyWeightedRoundRobin
 	case nil, *RoundRobinSelector:
@@ -631,6 +634,31 @@ func (s *authScheduler) pickMixedWithStrategy(ctx context.Context, providers []s
 		bestPriority, hasCandidate = pinned.meta.priority, true
 	}
 	if !hasCandidate {
+		return nil, "", s.mixedUnavailableErrorLocked(normalized, model, predicate)
+	}
+
+	if strategy == schedulerStrategyResetFirst {
+		resetNow := time.Now()
+		var bestAuth *Auth
+		var bestRank resetRank
+		bestProvider := ""
+		for providerIndex, providerKey := range normalized {
+			shard := candidateShards[providerIndex]
+			if shard == nil {
+				continue
+			}
+			picked := shard.pickReadyAtPriorityLocked(false, bestPriority, strategy, predicate)
+			if picked == nil {
+				continue
+			}
+			rank := weeklyResetRank(picked, resetNow)
+			if bestAuth == nil || rank.less(bestRank) {
+				bestAuth, bestRank, bestProvider = picked, rank, providerKey
+			}
+		}
+		if bestAuth != nil {
+			return bestAuth, bestProvider, nil
+		}
 		return nil, "", s.mixedUnavailableErrorLocked(normalized, model, predicate)
 	}
 
@@ -1518,6 +1546,8 @@ func (m *modelScheduler) pickReadyAtPriorityLocked(preferWebsocket bool, priorit
 	switch strategy {
 	case schedulerStrategyFillFirst:
 		picked = view.pickFirst(predicate)
+	case schedulerStrategyResetFirst:
+		picked = view.pickEarliestReset(predicate, time.Now())
 	case schedulerStrategyWeightedRoundRobin:
 		picked = view.pickWeighted(predicate)
 	default:

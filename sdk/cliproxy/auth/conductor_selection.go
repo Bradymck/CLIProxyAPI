@@ -73,7 +73,7 @@ func (m *Manager) PluginSchedulerWantsAcrossPriorities() bool {
 
 func isBuiltInSelector(selector Selector) bool {
 	switch selector.(type) {
-	case *RoundRobinSelector, *WeightedRoundRobinSelector, *FillFirstSelector:
+	case *RoundRobinSelector, *WeightedRoundRobinSelector, *FillFirstSelector, *ResetFirstSelector:
 		return true
 	default:
 		return false
@@ -1260,6 +1260,8 @@ func builtinSchedulerStrategy(delegate string) (schedulerStrategy, bool) {
 		return schedulerStrategyRoundRobin, true
 	case pluginapi.SchedulerBuiltinFillFirst:
 		return schedulerStrategyFillFirst, true
+	case pluginapi.SchedulerBuiltinResetFirst:
+		return schedulerStrategyResetFirst, true
 	default:
 		return schedulerStrategyCustom, false
 	}

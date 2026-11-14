@@ -562,6 +562,9 @@ const (
 	SchedulerBuiltinRoundRobin = "round-robin"
 	// SchedulerBuiltinFillFirst delegates auth selection to the built-in fill-first scheduler.
 	SchedulerBuiltinFillFirst = "fill-first"
+	// SchedulerBuiltinResetFirst delegates auth selection to the built-in reset-first scheduler,
+	// which drains the credential whose weekly quota window resets soonest.
+	SchedulerBuiltinResetFirst = "reset-first"
 	// SelectionIDMetadataKey is the metadata key carrying the per-selection identifier in SchedulerOptions.Metadata.
 	SelectionIDMetadataKey = "selection_id"
 )

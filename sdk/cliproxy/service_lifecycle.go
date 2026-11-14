@@ -104,6 +104,8 @@ func (s *Service) Run(ctx context.Context) error {
 		interval := 15 * time.Minute
 		s.coreManager.StartAutoRefresh(ctx, interval)
 		log.Infof("core auth auto-refresh started (interval=%s)", interval)
+		// Idle while reset-first routing is off; stops with the run context.
+		go newWeeklyQuotaRefresher(s.coreManager, s.currentConfig).run(ctx)
 	}
 
 	if !homeEnabled {
